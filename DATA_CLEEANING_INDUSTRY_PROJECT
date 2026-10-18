@@ -1,0 +1,272 @@
+import pandas as pd 
+
+df = pd.read_excel("Enterprise_Retail_Advanced_Data_Cleaning_Practice.xlsx")
+missing_price = (df.isnull().sum()/len(df)) * 100
+
+print(missing_price.sort_values(ascending=False))
+
+
+df["City"] =df["City"].fillna("unknown")
+
+df["Customer_Segment"] =df["Customer_Segment"].fillna("unknown")
+
+df["Product_Category"] =df["Product_Category"].fillna("unknown")
+
+df.dropna(subset=["Order_Date"],inplace=True)
+
+
+df["Unit_Price"]=pd.to_numeric(df["Unit_Price"] , errors="coerce")
+df["Unit_Price"]=df["Unit_Price"].fillna(df["Unit_Price"].median())
+
+print(df["Discount_Pct"].unique())
+
+df["Discount_Pct"] =df["Discount_Pct"].fillna(0)
+
+df["Payment_Method"] = df["Payment_Method"].fillna(
+    df["Payment_Method"].mode()[0]
+)
+print(df["Payment_Method"].value_counts())
+
+print(df.loc[df["Payment_Method"] == "cod"])
+
+
+print(df["Delivery_Days"].value_counts())
+
+df["Delivery_Days"] =pd.to_numeric(df["Delivery_Days"] , errors="coerce")
+
+df.loc[df["Delivery_Days"] < 0 ,"Delivery_Days"] =pd.NA
+
+df["Delivery_Days"] = df["Delivery_Days"].fillna(df["Delivery_Days"].median())
+
+
+df["Customer_Rating"]=pd.to_numeric(df["Customer_Rating"], errors="coerce")
+
+df.loc[
+    (df["Customer_Rating"] < 1) |
+    (df["Customer_Rating"] > 5),
+    "Customer_Rating"
+] = pd.NA
+print(df["Customer_Rating"].value_counts())
+
+df["Customer_Rating"] = df["Customer_Rating"].fillna(
+    df["Customer_Rating"].median()
+)
+
+
+print(df["Sales_Rep"].value_counts())
+
+df["Sales_Rep"]=df["Sales_Rep"].fillna("unknown")
+print(df["Sales_Rep"])
+
+print(df["Revenue"].value_counts())
+print(df["Revenue"].unique())
+
+missing_revnue =(df.isnull().sum() / len(df)) * 100
+
+print(missing_revnue.sort_values(ascending=False))
+
+print(df.isnull().sum())
+print(df[df["Revenue"].isnull()])
+
+print(df.columns.tolist())
+
+missing_revenue = df["Revenue"].isnull().mean() * 100
+print("Revenue missing percentage:", missing_revenue)
+
+mask = df["Revenue"].isnull()
+
+df.loc[mask, "Revenue"] = (
+    df.loc[mask, "Quantity"]
+    * df.loc[mask, "Unit_Price"]
+    * (1 - df.loc[mask, "Discount_Pct"] / 100)
+)
+
+print(df["Product_Name"].str.contains(r"^\s|\s$", na=False).sum())
+
+for col in df.select_dtypes(include=object).columns:
+      print(f"\nColumn: {col}")
+      print(df[col].dropna().unique()[:30])
+      
+print(df["Payment_Method"].unique())
+
+print(df["Payment_Method"].str.lower().str.strip().unique())
+
+print(df["Order_Status"].str.lower().str.strip())
+
+df["City"] = df["City"].str.strip()
+df["Product_Category"] = df["Product_Category"].str.strip()
+df["Order_Status"] = df["Order_Status"].str.strip()
+
+for col in df.select_dtypes(include="object").columns:
+    count = df[col].str.contains(r"^\s|\s$", na=False).sum()
+    print(col, "=", count)
+
+
+print(df.duplicated().shape)
+
+df.drop_duplicates(inplace=True)
+print(df.columns.tolist())
+print(df["Customer_ID"].value_counts())
+
+print(df[df["Customer_ID"]=="CUST13659"])
+print("Duplicate Order_ID:", df["Order_ID"].duplicated().sum())
+df["Order_Date"] = pd.to_datetime(df["Order_Date"], errors="coerce")
+print(df.dtypes)
+
+
+print(df.describe())
+
+columns = [
+    "Quantity",
+    "Unit_Price",
+    "Revenue",
+    "Discount_Pct",
+    "Profit_Margin_Pct"
+]
+
+for col in columns:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+
+    IQR = Q3 - Q1
+
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+
+    outliers = df[
+        (df[col] < lower) | (df[col] > upper)
+    ]
+
+    print(col, "Outliers:", len(outliers))
+    print("Lower limit:", lower)
+    print("Upper limit:", upper)
+    print("-" * 40)
+
+    Q1 = df["Unit_Price"].quantile(0.25)
+    Q3 = df["Unit_Price"].quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+
+    outliers = df[
+    (df["Unit_Price"] < lower) |
+    (df["Unit_Price"] > upper)
+]
+
+    print(outliers[["Order_ID", "Product_Name", "Unit_Price", "Quantity", "Revenue"]
+    ].head(10))
+
+    print(
+         df[["Order_ID", "Product_Name", "Unit_Price", "Quantity", "Revenue"]].head(10)
+    )
+
+    df["Expected_Revenue"] = (
+    df["Unit_Price"] * df["Quantity"]
+    * (1 - df["Discount_Pct"] / 100)
+)
+
+    print(df[
+          ["Unit_Price", "Quantity", "Discount_Pct",
+           "Revenue", "Expected_Revenue"]
+           ].head(10))
+
+    
+  
+    df["Expected_Revenue"] = (
+    df["Unit_Price"] * df["Quantity"]
+    * (1 - df["Discount_Pct"] / 100)
+)
+
+    df["Revenue_Difference"] = (
+    df["Revenue"] - df["Expected_Revenue"]
+    ).round(2)
+
+    print("Revenue mismatches:",
+      (df["Revenue_Difference"].abs() > 0.01).sum())
+
+
+    mismatch = df[df["Revenue_Difference"].abs() > 0.01]
+
+    print(mismatch[
+    ["Order_ID", "Unit_Price", "Quantity",
+     "Discount_Pct", "Revenue", "Expected_Revenue"]
+    ].head(10))
+
+    print("Total rows:", len(df))
+    print("Revenue mismatches:", (df["Revenue_Difference"].abs() > 0.01).sum())
+    print("Missing Revenue:", df["Revenue"].isnull().sum())
+    print("Missing Unit Price:", df["Unit_Price"].isnull().sum())
+    print("Missing Quantity:", df["Quantity"].isnull().sum())
+    print("Missing Discount:", df["Discount_Pct"].isnull().sum())
+    print(
+    df.loc[
+        df["Revenue_Difference"].abs() > 0.01,
+        ["Order_ID", "Unit_Price", "Quantity",
+         "Discount_Pct", "Revenue", "Expected_Revenue"]
+    ].head(10).to_string(index=False)
+)
+
+    # 1. Check negative values
+print("Negative Quantity:", (df["Quantity"] < 0).sum())
+print("Negative Unit_Price:", (df["Unit_Price"] < 0).sum())
+print("Negative Revenue:", (df["Revenue"] < 0).sum())
+print("Negative Discount:", (df["Discount_Pct"] < 0).sum())
+
+print("-" * 40)
+
+# 2. Check invalid Discount
+print("Discount above 100%:",
+      (df["Discount_Pct"] > 100).sum())
+
+print("-" * 40)
+
+# 3. Check Customer Rating range (assuming 1–5 scale)
+print("Rating below 1:",
+      (df["Customer_Rating"] < 1).sum())
+
+print("Rating above 5:",
+      (df["Customer_Rating"] > 5).sum())
+
+print("-" * 40)
+
+# 4. Check Date data type
+df["Order_Date"] = pd.to_datetime(
+    df["Order_Date"], errors="coerce"
+)
+
+print("Invalid or missing dates:",
+      df["Order_Date"].isna().sum())
+
+# 5. Check final dataset size
+print("Final rows:", df.shape[0])
+print("Final columns:", df.shape[1])
+
+for col in ["Quantity", "Unit_Price", "Revenue", "Discount_Pct"]:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+
+    count = ((df[col] < lower) | (df[col] > upper)).sum()
+
+    print(col, "Outliers:", count)
+
+    print(df[df["Order_Date"].isna()])
+
+    df_final =df.drop(
+         columns=["Expected_Revenue","Revenue_Difference"],
+         errors="ignore"
+    )
+
+df_final.to_excel(
+    "Enterprise_Retail_Cleaned_Final.xlsx",
+    index=False
+)
+
+print("Cleaned dataset saved successfully!")
+print("Total rows:", df_final.shape[0])
+print("Total columns:", df_final.shape[1])
+print("Missing dates:", df_final["Order_Date"].isna().sum())
